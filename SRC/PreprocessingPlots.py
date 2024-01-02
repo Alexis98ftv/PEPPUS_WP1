@@ -99,7 +99,7 @@ def plotSatVisibility(PreproObsFile, PreproObsData):
     FilterStatus0 = PreproObsData[PreproIdx["STATUS"]] == 0
     PlotConf["Color"][Label] = "gray"
 
-    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterStatus0] / GnssConstants.S_IN_H
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][FilterStatus0] / Const.S_IN_H
     PlotConf["yData"][Label] = PreproObsData[PreproIdx["PRN"]][FilterStatus0]
     PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][FilterStatus0]
 
