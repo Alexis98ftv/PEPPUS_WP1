@@ -50,7 +50,7 @@ cfg = {
     "SatVisibility"         : 0,
     "NumSatellites"         : 0,
     "CodeRate"              : 0,
-    "CodeRateStep"          : 0,
+    "CodeRateStep"          : 1,
     "PhaseRate"             : 0,
     "PhaseRateStep"         : 0,
     "VTEC"                  : 0,
@@ -222,6 +222,7 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     Title = "Code Rate Step"
 
     PlotConf["yLabel"] = "Code Rate Step [m/s^2]"
+    PlotConf["yLim"] = [-20,20]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
