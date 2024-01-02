@@ -226,16 +226,22 @@ def generateLinesPlot(PlotConf):
             drawMap(PlotConf, ax)
 
     for Label in PlotConf["yData"].keys():
-        if "Color" in PlotConf:
+        if "Color" in PlotConf and Label in PlotConf["Color"]:
             ColorData = PlotConf["Color"][Label]
         else:
             ColorData = Color
 
         if "ColorBar" in PlotConf:
-            ax.scatter(PlotConf["xData"][Label], PlotConf["yData"][Label],
-            marker = PlotConf["Marker"],
-            s = LineWidth,
-            c = cmap(normalize(np.array(PlotConf["zData"][Label]))))
+            if "Color" in PlotConf and Label in PlotConf["Color"]:
+                ax.scatter(PlotConf["xData"][Label], PlotConf["yData"][Label],
+                marker = PlotConf["Marker"],
+                s = LineWidth,
+                c = ColorData)
+            else:
+                ax.scatter(PlotConf["xData"][Label], PlotConf["yData"][Label],
+                marker = PlotConf["Marker"],
+                s = LineWidth,
+                c = cmap(normalize(np.array(PlotConf["zData"][Label]))))
 
         else:
             ax.plot(PlotConf["xData"][Label], PlotConf["yData"][Label],

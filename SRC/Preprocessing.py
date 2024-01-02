@@ -178,7 +178,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         #-------------------------------------------------------------------------------
         DeltaT = SatPreproObsInfo["Sod"] - PrevPreproObsInfo[SatLabel]["PrevEpoch"]
         # DeltaT > 5000 simulates satellite's period to not tag non-visibility periods as data gaps
-        if(DeltaT > Conf["MAX_GAP"][1] and DeltaT > 5000):
+        if(DeltaT > Conf["MAX_GAP"][1] and DeltaT > 5000): # and PrevPreproObsInfo["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]
                 # Check if gap detection is activated
                 if Conf["MAX_GAP"][0]:
                     # Flag the measurement as a data gap
@@ -253,70 +253,80 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Check Phase Rate (if activated) # MAX_PHASE_RATE 952.0
         #-------------------------------------------------------------------------------
         # Compute the Phase Rate in m/s
-        if(PrevPreproObsInfo[SatLabel]["PrevPhase"] != Const.NAN and PrevPreproObsInfo[SatLabel]["PrevRej"] == REJECTION_CAUSE["NO_REJECTION"]):
+        if(PrevPreproObsInfo[SatLabel]["PrevPhase"] != Const.NAN):
             SatPreproObsInfo["PhaseRate"] = (SatPreproObsInfo["L1Meters"] - PrevPreproObsInfo[SatLabel]["PrevPhase"]) / DeltaT
             if(Conf["MAX_PHASE_RATE"][0] == 1):
                 # Check Phase Jump
                 if(SatPreproObsInfo["PhaseRate"] > Conf["MAX_PHASE_RATE"][1]):
                     # Reject the measurement setting flag: Max Phase Rate
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_PHASE_RATE"]
-
+        else:
+            SatPreproObsInfo["Status"] = 0
            
         # Check Phase Rate Step (if activated)
         #-------------------------------------------------------------------------------
         # Compute the Phase Rate Step in m/s2
-        if(PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] != Const.NAN and PrevPreproObsInfo[SatLabel]["PrevRej"] == REJECTION_CAUSE["NO_REJECTION"]):
+        if(PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] != Const.NAN):
             SatPreproObsInfo["PhaseRateStep"] = (SatPreproObsInfo["PhaseRate"] - PrevPreproObsInfo[SatLabel]["PrevPhaseRate"]) / DeltaT
             if(Conf["MAX_PHASE_RATE_STEP"][0] == 1):
                 # Check Phase Rate Jump
                 if(SatPreproObsInfo["PhaseRateStep"] > Conf["MAX_PHASE_RATE_STEP"][1]):
                     # Reject the measurement setting flag: Max Phase Rate Step
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_PHASE_RATE_STEP"]
+        else:
+            SatPreproObsInfo["Status"] = 0
 
         # Check Code Rate detector (if activated)
         #-------------------------------------------------------------------------------
         # Compute the Code Rate in m/s as the first derivative of Raw Codes
-        if(PrevPreproObsInfo[SatLabel]["PrevCode"] != Const.NAN and PrevPreproObsInfo[SatLabel]["PrevRej"] == REJECTION_CAUSE["NO_REJECTION"]):
+        if(PrevPreproObsInfo[SatLabel]["PrevCode"] != Const.NAN):
             SatPreproObsInfo["CodeRate"] = (SatPreproObsInfo["C1"] - PrevPreproObsInfo[SatLabel]["PrevCode"]) / DeltaT
             if(Conf["MAX_CODE_RATE"][0] == 1):
                 # Check Code Jump
                 if(SatPreproObsInfo["CodeRate"] > Conf["MAX_CODE_RATE"][1]):
                     # Reject the measurement setting flag: Max Code Rate
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_CODE_RATE"]
-
+        else:
+            SatPreproObsInfo["Status"] = 0
 
         # Check Code Rate Step detector (if activated)
         #-------------------------------------------------------------------------------
         # Compute the Code Rate step in m/s2 as the second derivative of Raw Codes
-        if(PrevPreproObsInfo[SatLabel]["PrevCodeRate"] != Const.NAN and PrevPreproObsInfo[SatLabel]["PrevRej"] == REJECTION_CAUSE["NO_REJECTION"]):
+        if(PrevPreproObsInfo[SatLabel]["PrevCodeRate"] != Const.NAN):
             SatPreproObsInfo["CodeRateStep"] = (SatPreproObsInfo["CodeRate"] - PrevPreproObsInfo[SatLabel]["PrevCodeRate"]) / DeltaT
             if(Conf["MAX_CODE_RATE_STEP"][0] == 1):
                 # Check Code Rate Jump
                 if(SatPreproObsInfo["CodeRateStep"] > Conf["MAX_CODE_RATE_STEP"][1]):
                     # Reject the measurement setting flag: Max Code Rate Step
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_CODE_RATE_STEP"]
+        else:
+            SatPreproObsInfo["Status"] = 0
 
+        #-------------------------------------------------------------------------------
+        # Set Status to 0 (invalid measurement) in case of rejection cause flag
+        #-------------------------------------------------------------------------------
+        if(SatPreproObsInfo["RejectionCause"] != REJECTION_CAUSE["NO_REJECTION"]):
+            SatPreproObsInfo["Status"] = 0
+        
+        #-------------------------------------------------------------------------------
         # Compute Iono Mapping Function as per MOPS Standard
         #-------------------------------------------------------------------------------
+        # Compute Iono Mapping Function as per MOPS Standard
         SatPreproObsInfo["Mpp"] = computeIonoMappingFunction(SatPreproObsInfo["Elevation"])
 
         # Check if previous observable is valid
         #-------------------------------------------------------------------------------
-        if (PrevPreproObsInfo[SatLabel]["PrevStec"] != Const.NAN and PrevPreproObsInfo[SatLabel]["PrevRej"] == REJECTION_CAUSE["NO_REJECTION"]):
+        if (PrevPreproObsInfo[SatLabel]["PrevStec"] != Const.NAN and SatPreproObsInfo["Status"] == 1):
             # Estimate STEC Gradient
             DeltaSTEC = ((SatPreproObsInfo["GF_L"] - PrevPreproObsInfo[SatLabel]["PrevStec"]) / (1-Const.GPS_GAMMA_L1L2)) / DeltaT
+            PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = SatPreproObsInfo["Sod"]
 
             # Estimate VTEC Gradient - VTECRate = DeltaVTEC
             SatPreproObsInfo["VtecRate"] = DeltaSTEC / SatPreproObsInfo["Mpp"] 
 
             # Compute instantaneous AATR
             SatPreproObsInfo["iAATR"] = SatPreproObsInfo["VtecRate"] / SatPreproObsInfo["Mpp"]
-
-        #-------------------------------------------------------------------------------
-        # Set Status to 0 (invalid measurement) in case of rejection cause flag
-        #-------------------------------------------------------------------------------
-        if(SatPreproObsInfo["RejectionCause"] != 0):
-            SatPreproObsInfo["Status"] = 0
+        
         #-------------------------------------------------------------------------------
         # Store current values into previous ones for next iteration
         #-------------------------------------------------------------------------------
@@ -327,11 +337,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         PrevPreproObsInfo[SatLabel]["PrevP2"] = SatPreproObsInfo["P2"]
         PrevPreproObsInfo[SatLabel]["PrevRej"] = SatPreproObsInfo["RejectionCause"]
 
-
-
         # Cycle Slip
-
-
 
         # Just for C1 and L1 (in meters) (to not duplicate code in python)
         PrevPreproObsInfo[SatLabel]["PrevCode"] = SatPreproObsInfo["C1"]
