@@ -1,0 +1,5 @@
+# heavy data
+/SCN/SCEN-PPP-JAN19/INP/OBS
+/SCN/SCEN-PPP-JAN19/OUT/PPVE/*.dat
+.vscode/
+._*
