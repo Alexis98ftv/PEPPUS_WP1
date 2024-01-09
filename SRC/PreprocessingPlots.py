@@ -49,8 +49,10 @@ def initPlot(PreproObsFile, PlotConf, Title, Label):
 cfg = {
     "SatVisibility"         : 0,
     "NumSatellites"         : 0,
+    "PolarView"             : 1,
+    "RejFlags"              : 0,
     "CodeRate"              : 0,
-    "CodeRateStep"          : 1,
+    "CodeRateStep"          : 0,
     "PhaseRate"             : 0,
     "PhaseRateStep"         : 0,
     "VTEC"                  : 0,
@@ -164,12 +166,89 @@ def plotNumSats(PreproObsFile, PreproObsData):
 
 # Plot Satellite Polar View - CHALLENGE
 def plotSatPolarView(PreproObsFile, PreproObsData):
-    print()
+    PlotConf = {}
+
+    PlotConf["Type"] = "Lines"
+    PlotConf["FigSize"] = (8.4,6.6)
+    Title = "Satellite Polar View"
+
+    PlotConf["Grid"] = 1
+
+    PlotConf["Marker"] = '.'
+    PlotConf["LineWidth"] = 1.5
+
+    PlotConf["ColorBar"] = "gnuplot"
+    PlotConf["ColorBarLabel"] = "GPS-PRN"
+    PlotConf["ColorBarTicks"] = range(0,33)
+
+    PlotConf["xData"] = {}
+    PlotConf["yData"] = {}
+    PlotConf["zData"] = {}
+
+    PlotConf["Polar"] = True
+
+    azim = PreproObsData[PreproIdx["AZIM"]]
+    elev = PreproObsData[PreproIdx["ELEV"]]
+
+    theta_azim_rad = np.radians(azim)
+    r_elev = 90 - elev
+
+    filter_cond = PreproObsData[PreproIdx["REJECT"]] != 2
+    Label = 0
+
+    PlotConf["xData"][Label] = theta_azim_rad[filter_cond]
+    PlotConf["yData"][Label] = r_elev[filter_cond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["PRN"]][filter_cond]
+
+    # init plot
+    Folder = "POLAR_VIEW"
+    initPlot(PreproObsFile, PlotConf, Title, Folder)
+    # Reset xLabel from initPlot
+    PlotConf["xLabel"] = ""
+    # Call generatePlot from Plots library
+    generatePlot(PlotConf)
 
 
 # Plot Rejection Flags
 def plotRejectionFlags(PreproObsFile, PreproObsData):
-    print()
+    PlotConf = {}
+
+    PlotConf["Type"] = "Lines"
+    PlotConf["FigSize"] = (8.4,6.6)
+    Title = "Rejection Flags"
+
+    PlotConf["yLabel"] = "Rejection Flags"
+    PlotConf["yTicks"] = range(0,15)
+        
+    PlotConf["xTicks"] = range(0, 25)
+    PlotConf["xLim"] = [0, 24]
+
+    PlotConf["Grid"] = 1
+
+    PlotConf["Marker"] = '.'
+    PlotConf["LineWidth"] = 10
+
+    PlotConf["ColorBar"] = "viridis"
+    PlotConf["ColorBarLabel"] = "GPS-PRN"
+    PlotConf["ColorBarTicks"] = range(0,33)
+
+    PlotConf["xData"] = {}
+    PlotConf["yData"] = {}
+    PlotConf["zData"] = {}
+
+    Label = 0
+
+    filter_cond = PreproObsData[PreproIdx["REJECT"]] != 0
+
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][filter_cond] / Const.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["REJECT"]][filter_cond]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["PRN"]][filter_cond]
+
+    # init plot
+    Folder = "REJ_FLAGs"
+    initPlot(PreproObsFile, PlotConf, Title, Folder)
+    # Call generatePlot from Plots library
+    generatePlot(PlotConf)
 
 
 # Plot Code Rate
@@ -305,7 +384,7 @@ def plotPhaseRateStep(PreproObsFile, PreproObsData):
     Title = "Phase Rate Step"
 
     PlotConf["yLabel"] = "Phase Rate Step [m/s^2]"
-    PlotConf["yLim"] = [-0.1,0.30]
+    PlotConf["yLim"] = [-0.05,0.20]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
@@ -392,6 +471,7 @@ def plotAatr(PreproObsFile, PreproObsData):
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
 
+
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
@@ -455,7 +535,31 @@ def generatePreproPlots(PreproObsFile):
 
         # Call Plot Function
         plotNumSats(PreproObsFile, PreproObsData)
-      
+
+    # Polar View
+    # ----------------------------------------------------------
+    if (cfg["PolarView"] == 1):
+        # Read the cols we need from PREPRO OBS file
+        PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
+        usecols=[PreproIdx["ELEV"], PreproIdx["AZIM"], PreproIdx["PRN"], PreproIdx["REJECT"]])
+
+        print( '\nPlot Satellite Polar View ...')
+
+        # Call Plot Function
+        plotSatPolarView(PreproObsFile, PreproObsData)
+
+    # Rejection Flags
+    # ----------------------------------------------------------
+    if (cfg["RejFlags"] == 1):
+        # Read the cols we need from PREPRO OBS file
+        PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
+        usecols=[PreproIdx["SOD"], PreproIdx["PRN"], PreproIdx["REJECT"]])
+
+        print( '\nPlot Rejection Flags ...')
+
+        # Call Plot Function
+        plotRejectionFlags(PreproObsFile, PreproObsData)
+
     # Code Rate
     # ----------------------------------------------------------
     if (cfg["CodeRate"] == 1):

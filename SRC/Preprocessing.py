@@ -177,19 +177,20 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Check measurement data gaps
         #-------------------------------------------------------------------------------
         DeltaT = SatPreproObsInfo["Sod"] - PrevPreproObsInfo[SatLabel]["PrevEpoch"]
-        # DeltaT > 5000 simulates satellite's period to not tag non-visibility periods as data gaps
-        if(DeltaT > Conf["MAX_GAP"][1] and DeltaT > 5000): # and PrevPreproObsInfo["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]
+        # DeltaT < 1000 simulates satellite's period to not tag non-visibility periods as data gaps
+        if(DeltaT > Conf["MAX_GAP"][1] and DeltaT < 1000): # and PrevPreproObsInfo["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]
                 # Check if gap detection is activated
                 if Conf["MAX_GAP"][0]:
                     # Flag the measurement as a data gap
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["DATA_GAP"]
-                    # Reset previous info
-                    PrevPreproObsInfo[SatLabel]["PrevCode"] = Const.NAN
-                    PrevPreproObsInfo[SatLabel]["PrevPhase"] = Const.NAN
-                    PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = Const.NAN
-                    PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] = Const.NAN
-                    PrevPreproObsInfo[SatLabel]["PrevStec"] = Const.NAN
-                    PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = Const.NAN
+
+                # Reset previous info
+                PrevPreproObsInfo[SatLabel]["PrevCode"] = Const.NAN
+                PrevPreproObsInfo[SatLabel]["PrevPhase"] = Const.NAN
+                PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = Const.NAN
+                PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] = Const.NAN
+                PrevPreproObsInfo[SatLabel]["PrevStec"] = Const.NAN
+                PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = Const.NAN
 
         # Build measurement combinations
         #-------------------------------------------------------------------------------
