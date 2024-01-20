@@ -102,12 +102,6 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             lowest_elev = 100.0
             NSATS = NSATS - 1
     
-
-    # Winmerge ==> detect diff between (0.000) and (-0.000)
-    #---------------------------------------
-    zeroWinmerge = -0.000
-    #---------------------------------------
-
     # Loop over satellites
     for SatObs in ObsInfo:
         # Initialize output info
@@ -183,9 +177,8 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Check measurement data gaps
         #-------------------------------------------------------------------------------
         DeltaT = SatPreproObsInfo["Sod"] - PrevPreproObsInfo[SatLabel]["PrevEpoch"]
-        # DeltaT < 1000 simulates satellite's period to not tag non-visibility periods as data gaps
         if (DeltaT > Conf["MAX_GAP"][1]): 
-                # Check if gap detection is activated
+                # Check if gap detection is activated and do not tag non-visibility periods as data gaps
                 if (Conf["MAX_GAP"][0] and PrevPreproObsInfo[SatLabel]["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]):  
                     # Flag the measurement as a data gap
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["DATA_GAP"]
@@ -393,9 +386,9 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Check if previous observable is valid
         #-------------------------------------------------------------------------------
         if (PrevPreproObsInfo[SatLabel]["PrevStec"] != Const.NAN and SatPreproObsInfo["Status"] == 1):
+            DeltaTstec = SatPreproObsInfo["Sod"] - PrevPreproObsInfo[SatLabel]["PrevStecEpoch"]
             # Estimate STEC Gradient
-            DeltaSTEC = (((SatPreproObsInfo["GF_L"] - PrevPreproObsInfo[SatLabel]["PrevStec"]) / (1-Const.GPS_GAMMA_L1L2)) / DeltaT) * Const.M_IN_MM
-            PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = SatPreproObsInfo["Sod"]
+            DeltaSTEC = (((SatPreproObsInfo["GF_L"] - PrevPreproObsInfo[SatLabel]["PrevStec"]) / (1-Const.GPS_GAMMA_L1L2)) / DeltaTstec) * Const.M_IN_MM
 
             # Estimate VTEC Gradient - VTECRate = DeltaVTEC
             SatPreproObsInfo["VtecRate"] = DeltaSTEC / SatPreproObsInfo["Mpp"] 
@@ -411,7 +404,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if SatPreproObsInfo["iAATR"] == -0.000:
                 SatPreproObsInfo["iAATR"] = 0.000
             #---------------------------------------------------------
-        
+            
         #-------------------------------------------------------------------------------
         # Store current values into previous ones for next iteration
         #-------------------------------------------------------------------------------
@@ -428,14 +421,12 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         # Derivatives
         PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = SatPreproObsInfo["CodeRate"]
         PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] = SatPreproObsInfo["PhaseRate"]
-        
         # PrevStec
         if SatPreproObsInfo["Status"] != 0:
             PrevPreproObsInfo[SatLabel]["PrevStec"] = SatPreproObsInfo["GF_L"]
-        else:
-            PrevPreproObsInfo[SatLabel]["PrevStec"] = Const.NAN
-        
-
+            PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = SatPreproObsInfo["Sod"]
+            
+            
     return PreproObsInfo
 
 # End of function runPreProcMeas()

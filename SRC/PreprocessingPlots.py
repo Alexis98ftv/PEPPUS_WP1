@@ -48,14 +48,14 @@ def initPlot(PreproObsFile, PlotConf, Title, Label):
 
 # Plot Confg
 cfg = {
-    "SatVisibility"         : 0,
-    "NumSatellites"         : 0,
-    "PolarView"             : 0,
-    "RejFlags"              : 0,
-    "CodeRate"              : 0,
-    "CodeRateStep"          : 0,
-    "PhaseRate"             : 0,
-    "PhaseRateStep"         : 0,
+    "SatVisibility"         : 1,
+    "NumSatellites"         : 1,
+    "PolarView"             : 1,
+    "RejFlags"              : 1,
+    "CodeRate"              : 1,
+    "CodeRateStep"          : 1,
+    "PhaseRate"             : 1,
+    "PhaseRateStep"         : 1,
     "VTEC"                  : 1,
     "AATR"                  : 1
 }
@@ -300,7 +300,6 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     Title = "Code Rate Step"
 
     PlotConf["yLabel"] = "Code Rate Step [m/s^2]"
-    #PlotConf["yLim"] = [-20,20]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
@@ -466,7 +465,6 @@ def plotAatr(PreproObsFile, PreproObsData):
     Title = "AATR"
 
     PlotConf["yLabel"] = "AATR [mm/s]"
-    #PlotConf["yLim"] = [5, -25]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
