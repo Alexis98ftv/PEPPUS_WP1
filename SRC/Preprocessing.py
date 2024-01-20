@@ -102,6 +102,12 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             lowest_elev = 100.0
             NSATS = NSATS - 1
     
+
+    # Winmerge ==> detect diff between (0.000) and (-0.000)
+    #---------------------------------------
+    zeroWinmerge = -0.000
+    #---------------------------------------
+
     # Loop over satellites
     for SatObs in ObsInfo:
         # Initialize output info
@@ -178,13 +184,19 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         #-------------------------------------------------------------------------------
         DeltaT = SatPreproObsInfo["Sod"] - PrevPreproObsInfo[SatLabel]["PrevEpoch"]
         # DeltaT < 1000 simulates satellite's period to not tag non-visibility periods as data gaps
-        if(DeltaT > Conf["MAX_GAP"][1] and DeltaT < 1000): # and PrevPreproObsInfo["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]
+        if (DeltaT > Conf["MAX_GAP"][1]): 
                 # Check if gap detection is activated
-                if Conf["MAX_GAP"][0]:
+                if (Conf["MAX_GAP"][0] and PrevPreproObsInfo[SatLabel]["PrevRej"] != REJECTION_CAUSE["MASKANGLE"]):  
                     # Flag the measurement as a data gap
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["DATA_GAP"]
 
                 # Reset previous info
+                PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"] = 0
+                PrevPreproObsInfo[SatLabel]["CycleSlipFlagIdx"] = 0
+                PrevPreproObsInfo[SatLabel]["GF_L_Prev"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS])
+                PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS])
+                PrevPreproObsInfo[SatLabel]["CycleSlipFlags"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNEPOCHS])
+
                 PrevPreproObsInfo[SatLabel]["PrevCode"] = Const.NAN
                 PrevPreproObsInfo[SatLabel]["PrevPhase"] = Const.NAN
                 PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = Const.NAN
@@ -209,6 +221,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             #Lgeomfree=(SatPreproObsInfo["L1Meters"]-SatPreproObsInfo["L2Meters"])/(Const.GPS_GAMMA_L1L2-1)
 
             SatPreproObsInfo["GF_L"] = SatPreproObsInfo["L1Meters"] - SatPreproObsInfo["L2Meters"]
+            GF_L_cycles = SatPreproObsInfo["L1"] - SatPreproObsInfo["L2"]
 
         # Check satellite Elevation angle in front of the minimum by configuration
         # ----------------------------------------------------------
@@ -233,23 +246,85 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             if(SatPreproObsInfo["P2"] > Conf["MAX_PSR_OUTRNG"][1]):
                 SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_PSR_OUTRNG_L2"]
 
-
-
-
-
-
-
-
-
+        #-------------------------------------------------------------------------------
         #[CHALLENGE] # Check Cycle Slips, if activated
+        #-------------------------------------------------------------------------------
+        # fit a polynomial using previous GF measurements to compare the predicted value 
+        # with the observed one
+        #-------------------------------------------------------------------------------
+        if(Conf["CYCLE_SLIPS"][0] == 1): 
+            # If the buffer is full, we can detect the cycle slip with a polynom
+            if (PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"] == Conf["CYCLE_SLIPS"][3]): # number of points (7)
+                # Adjust polynom to the samples in the buffer
+                Polynom = np.polynomial.polynomial.polyfit(
+                    PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"],
+                    PrevPreproObsInfo[SatLabel]["GF_L_Prev"],
+                    int(Conf["CYCLE_SLIPS"][4])) # degree of polynom (2) Conf["CYCLE_SLIPS"][4] TypeError: deg must be an int or non-empty 1-D array of int
+                
+                # Predict Target value evaluating the polynom
+                Targetpred = np.polynomial.polynomial.polyval(SatPreproObsInfo["Sod"], Polynom)
 
+                # Compute Residual
+                Residual = abs(GF_L_cycles - Targetpred)
+
+                # Compute CS flag --> Check Residual against Threshold
+                if(Residual > Conf["CYCLE_SLIPS"][1]): # Threshold (0.5)
+                    CSflag = 1
+                else:
+                    CSflag = 0
+                
+                # Update CS flag buffer
+                if CSflag == 1:
+                    PrevPreproObsInfo[SatLabel]["CycleSlipFlags"][PrevPreproObsInfo[SatLabel]["CycleSlipFlagIdx"]] = CSflag
+                    PrevPreproObsInfo[SatLabel]["CycleSlipFlagIdx"] += 1
+                    # Set the measurement as Not Valid 
+                    SatPreproObsInfo["Status"] = 0
+                else:
+                    PrevPreproObsInfo[SatLabel]["CycleSlipFlags"][PrevPreproObsInfo[SatLabel]["CycleSlipFlagIdx"]] = CSflag
+                    
+                # Check if threshold was exceeded CSNEPOCHS times
+                if (sum(PrevPreproObsInfo[SatLabel]["CycleSlipFlags"]) == Conf["CYCLE_SLIPS"][2]):
+                    #print("cycleslip", SatPreproObsInfo["Sod"] / Const.S_IN_H) ##DEBUGGING
+                    # Set measurement as Not Valid
+                    SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["CYCLE_SLIP"]
+                    
+                    # Reset previous info
+                    PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"] = 0
+                    PrevPreproObsInfo[SatLabel]["CycleSlipFlagIdx"] = 0
+                    PrevPreproObsInfo[SatLabel]["GF_L_Prev"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS])
+                    PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS])
+                    PrevPreproObsInfo[SatLabel]["CycleSlipFlags"] = [0.0] * int(Conf["CYCLE_SLIPS"][CSNEPOCHS])
+
+                    PrevPreproObsInfo[SatLabel]["PrevCode"] = Const.NAN
+                    PrevPreproObsInfo[SatLabel]["PrevPhase"] = Const.NAN
+                    PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = Const.NAN
+                    PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] = Const.NAN
+                    PrevPreproObsInfo[SatLabel]["PrevStec"] = Const.NAN
+                    PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = Const.NAN
+                    # Set the measurement as Not Valid 
+                    SatPreproObsInfo["Status"] = 0
+                else:
+
+                    # Update the buffer
+                    if CSflag != 1:
+                        # Leave space for the new sample
+                        PrevPreproObsInfo[SatLabel]["GF_L_Prev"][:-1] = PrevPreproObsInfo[SatLabel]["GF_L_Prev"][1:]
+                        PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"][:-1] = PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"][1:]
+
+                        # Store new sample
+                        PrevPreproObsInfo[SatLabel]["GF_L_Prev"][-1] = GF_L_cycles
+                        PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"][-1] = SatPreproObsInfo["Sod"]
+            
+            # If the buffer is not full, fill the buffer
+            else:
+                # Fill the buffer 
+                PrevPreproObsInfo[SatLabel]["GF_L_Prev"][PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"]] = GF_L_cycles
+                PrevPreproObsInfo[SatLabel]["GF_Epoch_Prev"][PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"]] = SatPreproObsInfo["Sod"]
+                # Increase Idx Buffer
+                PrevPreproObsInfo[SatLabel]["CycleSlipBuffIdx"] += 1
+                # Set the measurement as Not Valid 
+                SatPreproObsInfo["Status"] = 0
         
-
-
-
-
-
-
 
         # Check Phase Rate (if activated) # MAX_PHASE_RATE 952.0
         #-------------------------------------------------------------------------------
@@ -258,7 +333,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             SatPreproObsInfo["PhaseRate"] = (SatPreproObsInfo["L1Meters"] - PrevPreproObsInfo[SatLabel]["PrevPhase"]) / DeltaT
             if(Conf["MAX_PHASE_RATE"][0] == 1):
                 # Check Phase Jump
-                if(SatPreproObsInfo["PhaseRate"] > Conf["MAX_PHASE_RATE"][1]):
+                if(abs(SatPreproObsInfo["PhaseRate"] > Conf["MAX_PHASE_RATE"][1])):
                     # Reject the measurement setting flag: Max Phase Rate
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_PHASE_RATE"]
         else:
@@ -271,7 +346,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             SatPreproObsInfo["PhaseRateStep"] = (SatPreproObsInfo["PhaseRate"] - PrevPreproObsInfo[SatLabel]["PrevPhaseRate"]) / DeltaT
             if(Conf["MAX_PHASE_RATE_STEP"][0] == 1):
                 # Check Phase Rate Jump
-                if(SatPreproObsInfo["PhaseRateStep"] > Conf["MAX_PHASE_RATE_STEP"][1]):
+                if(abs(SatPreproObsInfo["PhaseRateStep"] > Conf["MAX_PHASE_RATE_STEP"][1])):
                     # Reject the measurement setting flag: Max Phase Rate Step
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_PHASE_RATE_STEP"]
         else:
@@ -284,7 +359,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             SatPreproObsInfo["CodeRate"] = (SatPreproObsInfo["C1"] - PrevPreproObsInfo[SatLabel]["PrevCode"]) / DeltaT
             if(Conf["MAX_CODE_RATE"][0] == 1):
                 # Check Code Jump
-                if(SatPreproObsInfo["CodeRate"] > Conf["MAX_CODE_RATE"][1]):
+                if(abs(SatPreproObsInfo["CodeRate"] > Conf["MAX_CODE_RATE"][1])):
                     # Reject the measurement setting flag: Max Code Rate
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_CODE_RATE"]
         else:
@@ -297,7 +372,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
             SatPreproObsInfo["CodeRateStep"] = (SatPreproObsInfo["CodeRate"] - PrevPreproObsInfo[SatLabel]["PrevCodeRate"]) / DeltaT
             if(Conf["MAX_CODE_RATE_STEP"][0] == 1):
                 # Check Code Rate Jump
-                if(SatPreproObsInfo["CodeRateStep"] > Conf["MAX_CODE_RATE_STEP"][1]):
+                if(abs(SatPreproObsInfo["CodeRateStep"]) > Conf["MAX_CODE_RATE_STEP"][1]):
                     # Reject the measurement setting flag: Max Code Rate Step
                     SatPreproObsInfo["RejectionCause"] = REJECTION_CAUSE["MAX_CODE_RATE_STEP"]
         else:
@@ -319,7 +394,7 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         #-------------------------------------------------------------------------------
         if (PrevPreproObsInfo[SatLabel]["PrevStec"] != Const.NAN and SatPreproObsInfo["Status"] == 1):
             # Estimate STEC Gradient
-            DeltaSTEC = ((SatPreproObsInfo["GF_L"] - PrevPreproObsInfo[SatLabel]["PrevStec"]) / (1-Const.GPS_GAMMA_L1L2)) / DeltaT
+            DeltaSTEC = (((SatPreproObsInfo["GF_L"] - PrevPreproObsInfo[SatLabel]["PrevStec"]) / (1-Const.GPS_GAMMA_L1L2)) / DeltaT) * Const.M_IN_MM
             PrevPreproObsInfo[SatLabel]["PrevStecEpoch"] = SatPreproObsInfo["Sod"]
 
             # Estimate VTEC Gradient - VTECRate = DeltaVTEC
@@ -327,6 +402,15 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
 
             # Compute instantaneous AATR
             SatPreproObsInfo["iAATR"] = SatPreproObsInfo["VtecRate"] / SatPreproObsInfo["Mpp"]
+
+            #---------------------------------------------------------
+            # Winmerge ==> detect diff between (0.000) and (-0.000)
+            #---------------------------------------------------------
+            if SatPreproObsInfo["VtecRate"] == -0.000:
+                SatPreproObsInfo["VtecRate"] = 0.000
+            if SatPreproObsInfo["iAATR"] == -0.000:
+                SatPreproObsInfo["iAATR"] = 0.000
+            #---------------------------------------------------------
         
         #-------------------------------------------------------------------------------
         # Store current values into previous ones for next iteration
@@ -338,15 +422,19 @@ def runPreProcMeas(Conf, Rcvr, ObsInfo, PrevPreproObsInfo):
         PrevPreproObsInfo[SatLabel]["PrevP2"] = SatPreproObsInfo["P2"]
         PrevPreproObsInfo[SatLabel]["PrevRej"] = SatPreproObsInfo["RejectionCause"]
 
-        # Cycle Slip
-
         # Just for C1 and L1 (in meters) (to not duplicate code in python)
         PrevPreproObsInfo[SatLabel]["PrevCode"] = SatPreproObsInfo["C1"]
         PrevPreproObsInfo[SatLabel]["PrevPhase"] = SatPreproObsInfo["L1Meters"]
         # Derivatives
         PrevPreproObsInfo[SatLabel]["PrevCodeRate"] = SatPreproObsInfo["CodeRate"]
         PrevPreproObsInfo[SatLabel]["PrevPhaseRate"] = SatPreproObsInfo["PhaseRate"]
-        PrevPreproObsInfo[SatLabel]["PrevStec"] = SatPreproObsInfo["GF_L"]
+        
+        # PrevStec
+        if SatPreproObsInfo["Status"] != 0:
+            PrevPreproObsInfo[SatLabel]["PrevStec"] = SatPreproObsInfo["GF_L"]
+        else:
+            PrevPreproObsInfo[SatLabel]["PrevStec"] = Const.NAN
+        
 
     return PreproObsInfo
 

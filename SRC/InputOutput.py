@@ -744,6 +744,28 @@ def readConf(CfgFile):
 
                             # Increment number of read parameters
                             NReadParams = NReadParams + 1
+                        
+
+                        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                        # OWN PARAMETERS
+                        #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                        # Write prepro obs file [0:OFF|1:ON]
+                        #--------------------------------------------------------------------       
+                        elif Key=='WRITE_OBS_FILE':
+                            # Check parameter and load it in Conf
+                            Conf[Key] = checkConfParam(Key, Fields, 1, 1, [0], [1])
+
+                            # Increment number of read parameters
+                            NReadParams = NReadParams + 1
+                        
+                        # Plot PPVE figures [0:OFF|1:ON]
+                        #-----------------------------------------------
+                        elif Key=='PLOT_PPVE_FIGURES':
+                            # Check parameter and load it in Conf
+                            Conf[Key] = checkConfParam(Key, Fields, 1, 1, [0], [1])
+
+                            # Increment number of read parameters
+                            NReadParams = NReadParams + 1
 
     # # Check number of conf parameters
     # if (NReadParams != 39):

@@ -115,91 +115,95 @@ for Rcvr in RcvrInfo.keys():
             PreproObsFile = Scen + \
                 '/OUT/PPVE/' + "PREPRO_OBS_%s_Y%02dD%03d.dat" % \
                     (Rcvr, Year % 100, Doy)
+            if Conf["WRITE_OBS_FILE"]:
+                # Create output file
+                fpreprobs = createOutputFile(PreproObsFile, PreproHdr)
 
-            # Create output file
-            fpreprobs = createOutputFile(PreproObsFile, PreproHdr)
+        if Conf["WRITE_OBS_FILE"]:
+            # Initialize Variables
+            EndOfFile = False
+            ObsInfo = [None]
+            PrevPreproObsInfo = {}
+            for prn in range(1, Const.MAX_NUM_SATS_CONSTEL + 1):
+                PrevPreproObsInfo["G%02d" % prn] = {
+                    "PrevEpoch": 86400,                                            # Previous SoD with measurements
+                    "PrevL1": 0.0,                                                 # Previous L1 in cycles
+                    "PrevL2": 0.0,                                                 # Previous L2
+                    "PrevC1": 0.0,                                                 # Previous C1
+                    "PrevP2": 0.0,                                                 # Previous C2
+                    "PrevRej": 1,                                                  # Previous Rejection flag
+                    
+                    "CycleSlipBuffIdx": 0,                                         # Index of CS buffer
+                    "CycleSlipFlagIdx": 0,                                         # Index of CS flag array
+                    "GF_L_Prev": [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS]),      # Array with previous GF carrier phase observables
+                    "GF_Epoch_Prev": [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS]),  # Array with previous epochs
+                    "CycleSlipFlags": [0.0] * int(Conf["CYCLE_SLIPS"][CSNEPOCHS]), # Array with last cycle slips flags
+                    
+                    "PrevCode": Const.NAN,                                         # Previous Code
+                    "PrevPhase": Const.NAN,                                        # Previous Phase in meters
+                    "PrevCodeRate": Const.NAN,                                     # Previous Code Rate
+                    "PrevPhaseRate": Const.NAN,                                    # Previous Phase Rate
+                    "PrevStec": Const.NAN,                                         # Previous STEC
+                    "PrevStecEpoch": Const.NAN,                                    # Previous STEC epoch
+                    
+                    "ResetAmb": 1,                                                 # Reset Ambiguities flag
+                } # End of SatPreproObsInfo
 
-        # Initialize Variables
-        EndOfFile = False
-        ObsInfo = [None]
-        PrevPreproObsInfo = {}
-        for prn in range(1, Const.MAX_NUM_SATS_CONSTEL + 1):
-            PrevPreproObsInfo["G%02d" % prn] = {
-                "PrevEpoch": 86400,                                            # Previous SoD with measurements
-                "PrevL1": 0.0,                                                 # Previous L1 in cycles
-                "PrevL2": 0.0,                                                 # Previous L2
-                "PrevC1": 0.0,                                                 # Previous C1
-                "PrevP2": 0.0,                                                 # Previous C2
-                "PrevRej": 1,                                                  # Previous Rejection flag
-                
-                "CycleSlipBuffIdx": 0,                                         # Index of CS buffer
-                "CycleSlipFlagIdx": 0,                                         # Index of CS flag array
-                "GF_L_Prev": [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS]),      # Array with previous GF carrier phase observables
-                "GF_Epoch_Prev": [0.0] * int(Conf["CYCLE_SLIPS"][CSNPOINTS]),  # Array with previous epochs
-                "CycleSlipFlags": [0.0] * int(Conf["CYCLE_SLIPS"][CSNEPOCHS]), # Array with last cycle slips flags
-                
-                "PrevCode": Const.NAN,                                         # Previous Code
-                "PrevPhase": Const.NAN,                                        # Previous Phase in meters
-                "PrevCodeRate": Const.NAN,                                     # Previous Code Rate
-                "PrevPhaseRate": Const.NAN,                                    # Previous Phase Rate
-                "PrevStec": Const.NAN,                                         # Previous STEC
-                "PrevStecEpoch": Const.NAN,                                    # Previous STEC epoch
-                
-                "ResetAmb": 1,                                                 # Reset Ambiguities flag
-            } # End of SatPreproObsInfo
+            # Open OBS file
+            with open(ObsFile, 'r') as fobs:
+                # Read header line of OBS file
+                fobs.readline()
 
-        # Open OBS file
-        with open(ObsFile, 'r') as fobs:
-            # Read header line of OBS file
-            fobs.readline()
+                # LOOP over all Epochs of OBS file
+                # ----------------------------------------------------------
+                while not EndOfFile:
 
-            # LOOP over all Epochs of OBS file
-            # ----------------------------------------------------------
-            while not EndOfFile:
+                    # If ObsInfo is not empty
+                    if ObsInfo != []:
 
-                # If ObsInfo is not empty
-                if ObsInfo != []:
+                        # Read Only One Epoch
+                        ObsInfo = readObsEpoch(fobs)
 
-                    # Read Only One Epoch
-                    ObsInfo = readObsEpoch(fobs)
+                        # If ObsInfo is empty, exit loop
+                        if ObsInfo == []:
+                            break
 
-                    # If ObsInfo is empty, exit loop
-                    if ObsInfo == []:
-                        break
+                        # Preprocess OBS measurements
+                        # ----------------------------------------------------------
+                        PreproObsInfo = runPreProcMeas(Conf, RcvrInfo[Rcvr], ObsInfo, PrevPreproObsInfo)
 
-                    # Preprocess OBS measurements
-                    # ----------------------------------------------------------
-                    PreproObsInfo = runPreProcMeas(Conf, RcvrInfo[Rcvr], ObsInfo, PrevPreproObsInfo)
+                        # If PREPRO outputs are requested
+                        if Conf["PREPRO_OUT"] == 1:
+                            # Generate output file
+                            generatePreproFile(fpreprobs, PreproObsInfo)
 
-                    # If PREPRO outputs are requested
-                    if Conf["PREPRO_OUT"] == 1:
-                        # Generate output file
-                        generatePreproFile(fpreprobs, PreproObsInfo)
+                        # To be continued in next WP...
 
-                    # To be continued in next WP...
+                    # End of if ObsInfo != []:
 
-                # End of if ObsInfo != []:
+                    else:
+                        EndOfFile = True
 
-                else:
-                    EndOfFile = True
+                    # End of if ObsInfo != []:
 
-                # End of if ObsInfo != []:
+                # End of while not EndOfFile:
 
-            # End of while not EndOfFile:
-
-        # End of with open(ObsFile, 'r') as f:
+            # End of with open(ObsFile, 'r') as f:
 
         # If PREPRO outputs are requested
         if Conf["PREPRO_OUT"] == 1:
-            # Close PREPRO output file
-            fpreprobs.close()
+            
+            if Conf["WRITE_OBS_FILE"]:
+                # Close PREPRO output file
+                fpreprobs.close()
 
-            # Display Message
-            print("INFO: Reading file: %s and generating PREPRO figures..." %
-            PreproObsFile)
+            if Conf["PLOT_PPVE_FIGURES"]:
+                # Display Message
+                print("INFO: Reading file: %s and generating PREPRO figures..." %
+                PreproObsFile)
 
-            # Generate Preprocessing plots
-            generatePreproPlots(PreproObsFile)
+                # Generate Preprocessing plots
+                generatePreproPlots(PreproObsFile)
 
     # End of JD loop
 

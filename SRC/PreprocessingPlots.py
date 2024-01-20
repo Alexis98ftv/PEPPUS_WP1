@@ -46,17 +46,18 @@ def initPlot(PreproObsFile, PlotConf, Title, Label):
     PlotConf["Path"] = sys.argv[1] + '/OUT/PPVE/figures/%s/' % Label + \
         '%s_%s_Y%sD%s.png' % (Label, Rcvr, Year, Doy)
 
+# Plot Confg
 cfg = {
     "SatVisibility"         : 0,
     "NumSatellites"         : 0,
-    "PolarView"             : 1,
+    "PolarView"             : 0,
     "RejFlags"              : 0,
     "CodeRate"              : 0,
     "CodeRateStep"          : 0,
     "PhaseRate"             : 0,
     "PhaseRateStep"         : 0,
-    "VTEC"                  : 0,
-    "AATR"                  : 0
+    "VTEC"                  : 1,
+    "AATR"                  : 1
 }
 
 # Plot Satellite Visibility
@@ -78,7 +79,7 @@ def plotSatVisibility(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '|'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -111,7 +112,6 @@ def plotSatVisibility(PreproObsFile, PreproObsData):
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
 
-
 # Plot Number of Satellites
 def plotNumSats(PreproObsFile, PreproObsData):
     PlotConf = {}
@@ -128,7 +128,7 @@ def plotNumSats(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '-'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["xData"] = {}
     PlotConf["yData"] = {}
@@ -139,7 +139,6 @@ def plotNumSats(PreproObsFile, PreproObsData):
     Label = ["Raw", "OK"]
     colors = ["orange", "green"]
 
-    #filterStatus = PreproObsData[PreproIdx["STATUS"]] == 1
     sod_list = np.array(sorted(unique(PreproObsData[PreproIdx["SOD"]])), dtype=float)
     raw_list = np.zeros(len(sod_list))
     ok_list = np.zeros(len(sod_list))
@@ -162,7 +161,6 @@ def plotNumSats(PreproObsFile, PreproObsData):
     initPlot(PreproObsFile, PlotConf, Title, Folder)
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
-
 
 # Plot Satellite Polar View - CHALLENGE
 def plotSatPolarView(PreproObsFile, PreproObsData):
@@ -193,7 +191,7 @@ def plotSatPolarView(PreproObsFile, PreproObsData):
     theta_azim_rad = np.radians(azim)
     r_elev = 90 - elev
 
-    filter_cond = PreproObsData[PreproIdx["REJECT"]] != 2
+    filter_cond = PreproObsData[PreproIdx["STATUS"]] != 0
     Label = 0
 
     PlotConf["xData"][Label] = theta_azim_rad[filter_cond]
@@ -208,7 +206,6 @@ def plotSatPolarView(PreproObsFile, PreproObsData):
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
 
-
 # Plot Rejection Flags
 def plotRejectionFlags(PreproObsFile, PreproObsData):
     PlotConf = {}
@@ -218,7 +215,10 @@ def plotRejectionFlags(PreproObsFile, PreproObsData):
     Title = "Rejection Flags"
 
     PlotConf["yLabel"] = "Rejection Flags"
-    PlotConf["yTicks"] = range(0,15)
+    
+    PlotConf["yTicks"] = list(REJECTION_CAUSE_DESC.values())
+    PlotConf["yTicksLabels"] = list(REJECTION_CAUSE_DESC.keys())
+    PlotConf["yLim"] = [0, max(REJECTION_CAUSE_DESC.values()) + 1]
         
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
@@ -226,7 +226,7 @@ def plotRejectionFlags(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "viridis"
     PlotConf["ColorBarLabel"] = "GPS-PRN"
@@ -250,7 +250,6 @@ def plotRejectionFlags(PreproObsFile, PreproObsData):
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
 
-
 # Plot Code Rate
 def plotCodeRate(PreproObsFile, PreproObsData):
     PlotConf = {}
@@ -267,7 +266,7 @@ def plotCodeRate(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -301,7 +300,7 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     Title = "Code Rate Step"
 
     PlotConf["yLabel"] = "Code Rate Step [m/s^2]"
-    PlotConf["yLim"] = [-20,20]
+    #PlotConf["yLim"] = [-20,20]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
@@ -309,7 +308,7 @@ def plotCodeRateStep(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -350,7 +349,7 @@ def plotPhaseRate(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -384,7 +383,6 @@ def plotPhaseRateStep(PreproObsFile, PreproObsData):
     Title = "Phase Rate Step"
 
     PlotConf["yLabel"] = "Phase Rate Step [m/s^2]"
-    PlotConf["yLim"] = [-0.05,0.20]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
@@ -392,7 +390,7 @@ def plotPhaseRateStep(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -433,7 +431,7 @@ def plotVtecGradient(PreproObsFile, PreproObsData):
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -447,10 +445,11 @@ def plotVtecGradient(PreproObsFile, PreproObsData):
     Label = 0
 
     filterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    filterCond2 = PreproObsData[PreproIdx["VTEC RATE"]] != Const.NAN
 
-    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][filterCond] / Const.S_IN_H
-    PlotConf["yData"][Label] = PreproObsData[PreproIdx["VTEC RATE"]][filterCond]
-    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][filterCond]
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][filterCond][filterCond2] / Const.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["VTEC RATE"]][filterCond][filterCond2]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][filterCond][filterCond2]
 
     # init plot
     Folder = "VTEC"
@@ -467,15 +466,15 @@ def plotAatr(PreproObsFile, PreproObsData):
     Title = "AATR"
 
     PlotConf["yLabel"] = "AATR [mm/s]"
+    #PlotConf["yLim"] = [5, -25]
 
     PlotConf["xTicks"] = range(0, 25)
     PlotConf["xLim"] = [0, 24]
 
-
     PlotConf["Grid"] = 1
 
     PlotConf["Marker"] = '.'
-    PlotConf["LineWidth"] = 10
+    PlotConf["LineWidth"] = 5
 
     PlotConf["ColorBar"] = "gnuplot"
     PlotConf["ColorBarLabel"] = "Elevation [deg]"
@@ -489,10 +488,11 @@ def plotAatr(PreproObsFile, PreproObsData):
     Label = 0
 
     filterCond = PreproObsData[PreproIdx["STATUS"]] == 1
+    filterCond2 = PreproObsData[PreproIdx["iAATR"]] != Const.NAN
 
-    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][filterCond] / Const.S_IN_H
-    PlotConf["yData"][Label] = PreproObsData[PreproIdx["iAATR"]][filterCond]
-    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][filterCond]
+    PlotConf["xData"][Label] = PreproObsData[PreproIdx["SOD"]][filterCond][filterCond2] / Const.S_IN_H
+    PlotConf["yData"][Label] = PreproObsData[PreproIdx["iAATR"]][filterCond][filterCond2]
+    PlotConf["zData"][Label] = PreproObsData[PreproIdx["ELEV"]][filterCond][filterCond2]
 
     # init plot
     Folder = "AATR"
@@ -500,6 +500,7 @@ def plotAatr(PreproObsFile, PreproObsData):
     # Call generatePlot from Plots library
     generatePlot(PlotConf)
 
+# Generate PreProPlots
 def generatePreproPlots(PreproObsFile):
     # Purpose: generate output plots regarding Preprocessing results
 
@@ -541,7 +542,7 @@ def generatePreproPlots(PreproObsFile):
     if (cfg["PolarView"] == 1):
         # Read the cols we need from PREPRO OBS file
         PreproObsData = read_csv(PreproObsFile, delim_whitespace=True, skiprows=1, header=None,\
-        usecols=[PreproIdx["ELEV"], PreproIdx["AZIM"], PreproIdx["PRN"], PreproIdx["REJECT"]])
+        usecols=[PreproIdx["ELEV"], PreproIdx["AZIM"], PreproIdx["PRN"], PreproIdx["STATUS"]])
 
         print( '\nPlot Satellite Polar View ...')
 
